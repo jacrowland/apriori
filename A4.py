@@ -38,12 +38,18 @@ class Apriori():
         Runs the Apriori itemset frequency algorithm and returns a list of sets that pass the minsup, minconf and minlift rules
 
         """
+        print("Running...")
+        print("Database size: " + str(len(self.transactions)))
+        print("Number of unique items: " + str(len(self.items)))
         k = 1
         # Generate frequent itemsets of length k
         itemsets = self.generateItemSets(self.items, 1)
         frequentSets, infrequentSets = self.eliminateCandidates(itemsets)
+        print(frequentSets)
         # Repeat until no new frequent itemsets are identified
         while len(frequentSets) != 0:  
+            print(str(k) + "    " , end="")
+            print("\r", end="")
             # Generate length (k+1) candidate itemsets from length k frequent itemsets
             k += 1
             itemsets = self.generateItemSets(self.items, k)
@@ -56,7 +62,7 @@ class Apriori():
         frequentSets = backup
 
         # From frequent sets find rules that meet the confidence threshold
-        rules = []
+        associationRules = []
         for rule in frequentSets:
             k = len(rule)
             # generate subsets from 1 to k-1 in length
@@ -64,11 +70,20 @@ class Apriori():
                 itemsets = self.generateItemSets(rule, num)
                 for itemset in itemsets:
                     if self.calculateConfidence(rule, itemset) > self.minconf: # TODO: Implement LIFT check
-                        rules.append(itemset)
-
-        return rules
+                        associationRules.append(itemset)
+        print("Complete.")
+        return associationRules
     
     def eliminateCandidates(self, itemsets:list)->tuple:
+        """
+        Sorts candiadate itemsets by calculating the support value and comparing to the mininimum support value
+
+        Parameters
+        itemsets (list): A list of sets to sort
+
+        Returns
+        tuple: Returns a tuple of two sets. Containing the eliminated rules and one containing rules that pass
+        """
         frequentSets = []
         infrequentSets = []
         for i in range(len(itemsets)):
@@ -94,9 +109,9 @@ class Apriori():
             itemsets[i] = set(itemsets[i])
         return itemsets
 
-    def generateUniqueItemSet(self)->set:
+    def generateUniqueItemSet(self):
         """
-        Generates a set of items that appear across all transactions
+        Generates a set of items that appear across all transactions. Updates the class attribute self.transactions
         """
         for transaction in self.transactions:
             for item in transaction:
@@ -195,8 +210,8 @@ class Apriori():
 
 
 def main():
-    path = 'transactions.csv'
-    apriori = Apriori(0.15, 0.8, 0.1, path)
+    path = 'supermarket.csv'
+    apriori = Apriori(0.15, 0.8, 1, path)
     frequentSets = apriori.run()
 
     print(frequentSets)

@@ -3,8 +3,6 @@ import pandas as pd
 import csv
 import itertools
 
-## A.issubset(B)
-
 class Apriori():
     """
     This object implements the Apriori unsupervised machine learning algorithm 
@@ -131,7 +129,7 @@ class Apriori():
                     cleanedRow.append(item.strip().upper())
                 self.transactions.append(set(cleanedRow))
 
-    def calculateSupportValues(self, itemsets:list)->list:
+    def calculateSupportValues(self, itemsets:list)->list: # TODO: REMOVE THIS METHOD - is not used
         """
         Gets a list for the support values for each itemset in a list of itemsets
 
@@ -208,10 +206,9 @@ class Apriori():
                         prunedSets.append(itemset)
             return prunedSets
 
-
 def main():
     path = 'supermarket.csv'
-    apriori = Apriori(0.15, 0.8, 1, path)
+    apriori = Apriori(minsup=0.15, minconf=0.8, minlift=1, path=path)
     frequentSets = apriori.run()
 
     print(frequentSets)

@@ -35,36 +35,35 @@ class Apriori():
     def run(self):
         """
         Runs the Apriori itemset frequency algorithm and returns a list of sets that pass the minsup, minconf and minlift rules
-
         """
         print("Running...")
         print("Database size: " + str(len(self.transactions)))
         print("Number of unique items: " + str(len(self.items)))
-        k = 1
+
         # Generate frequent itemsets of length k
         frequentSets, infrequentSets = self.eliminateCandidates(self.items)
-        #print(frequentSets)
         # Repeat until no new frequent itemsets are identified
+        k = 1
         while len(frequentSets) != 0:  
             k += 1
-            #print(str(k) + "    " , end="")
-            #print("\r", end="")
+            print("K: " + str(k) + "    " , end="")
+            print("\r", end="")
             # Generate length (k+1) candidate itemsets from length k frequent itemsets
-            #print("\nGenerating item sets...")
+            print("\nGenerating item sets...")
             itemsets = self.generateItemSets(frequentSets, k) # TODO: THIS IS WRONG - SHOULD BE using the frequent itemset list to generate candidates
-            #print("Pruning " + str(len(itemsets)) + " item sets...")
+            print("Pruning " + str(len(itemsets)) + " item sets...")
             # Prune candidate itemsets containing subsets of length k that are infrequent
             itemsets = self.prune(itemsets, infrequentSets)
             # Count the support of each candidate by scanning the DB
             # Eliminate candidates that are infrequent, leaving only those that are frequent
-            #print("Making backup of item sets...")
-            backup = frequentSets.copy()
-            #print("Eliminating candidate item sets...\n")
+            print("Making backup of item sets...")
+            backup = frequentSets.copy() # holds a copy of frequent sets for k-1
+            print("Eliminating candidate item sets...\n")
             frequentSets, infrequentSets = self.eliminateCandidates(itemsets)
         frequentSets = backup
 
 
-        #print("Sorting final item sets...\n")
+        print("Sorting final item sets...\n")
         # From frequent sets find rules that meet the confidence threshold
         associationRules = []
         for rule in frequentSets:
@@ -134,7 +133,10 @@ class Apriori():
                 if item not in self.items:
                     items.add(item)
         for item in items:
-            self.items.append(set(item))
+            s = set()
+            s.add(item)
+            self.items.append(s)
+        print(self.items)
 
     def importTransactions(self):
         """
@@ -220,8 +222,8 @@ class Apriori():
         else:
             prunedSets = []
             for i in range(len(itemsets)):
-                #print(str(round(i / len(itemsets) * 100, 2)) + "%", end="")
-                #print("\r", end="")
+                print(str(round(i / len(itemsets) * 100, 2)) + "%", end="")
+                print("\r", end="")
                 for j in range(len(infrequentSets)):
                     if (not infrequentSets[j].issubset(itemsets[i])) and (itemsets[i] not in prunedSets):
                         prunedSets.append(itemsets[i])

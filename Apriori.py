@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import csv
 import itertools
+import time
 
 class Apriori():
     """
@@ -27,7 +28,7 @@ class Apriori():
         self.minlift = minlift
         self.path = path
         self.transactions = []
-        self.items = set()
+        self.items = []
         self.importTransactions()
         self.generateUniqueItemSet()
 
@@ -41,31 +42,41 @@ class Apriori():
         print("Number of unique items: " + str(len(self.items)))
         k = 1
         # Generate frequent itemsets of length k
-        itemsets = self.generateItemSets(self.items, 1)
-        frequentSets, infrequentSets = self.eliminateCandidates(itemsets)
-        print(frequentSets)
+        frequentSets, infrequentSets = self.eliminateCandidates(self.items)
+        #print(frequentSets)
         # Repeat until no new frequent itemsets are identified
         while len(frequentSets) != 0:  
-            print(str(k) + "    " , end="")
-            print("\r", end="")
-            # Generate length (k+1) candidate itemsets from length k frequent itemsets
             k += 1
-            itemsets = self.generateItemSets(self.items, k)
+            #print(str(k) + "    " , end="")
+            #print("\r", end="")
+            # Generate length (k+1) candidate itemsets from length k frequent itemsets
+            #print("\nGenerating item sets...")
+            itemsets = self.generateItemSets(frequentSets, k) # TODO: THIS IS WRONG - SHOULD BE using the frequent itemset list to generate candidates
+            #print("Pruning " + str(len(itemsets)) + " item sets...")
             # Prune candidate itemsets containing subsets of length k that are infrequent
             itemsets = self.prune(itemsets, infrequentSets)
             # Count the support of each candidate by scanning the DB
             # Eliminate candidates that are infrequent, leaving only those that are frequent
+            #print("Making backup of item sets...")
             backup = frequentSets.copy()
+            #print("Eliminating candidate item sets...\n")
             frequentSets, infrequentSets = self.eliminateCandidates(itemsets)
         frequentSets = backup
 
+
+        #print("Sorting final item sets...\n")
         # From frequent sets find rules that meet the confidence threshold
         associationRules = []
         for rule in frequentSets:
-            k = len(rule)
+            itemsets = []
+            for item in rule:
+                itemsets.append(set(item))
+                if self.calculateConfidence(rule, set(item)) > self.minconf: #TODO: clean this up
+                    associationRules.append(set(item))
+            k = len(itemsets)
             # generate subsets from 1 to k-1 in length
-            for num in range(1, k):
-                itemsets = self.generateItemSets(rule, num)
+            for num in range(2, k):
+                itemsets = self.generateItemSets(itemsets, num)
                 for itemset in itemsets:
                     if self.calculateConfidence(rule, itemset) > self.minconf: # TODO: Implement LIFT check
                         associationRules.append(itemset)
@@ -93,7 +104,7 @@ class Apriori():
 
     def generateItemSets(self, items:set, k:int)->list:
         """
-        Generates combinations of items of a certain lengths and returns a list of sets
+        Generates combinations of itemsets and returns a list of sets
 
         Parameters
         items (set): The set of items to generate combinations from
@@ -102,20 +113,28 @@ class Apriori():
         Returns:
         list: List of the generated combinations of length k
         """
-        itemsets = list(itertools.combinations(items, k))
-        for i in range(len(itemsets)):
-            itemsets[i] = set(itemsets[i])
+        pairs = list(itertools.combinations(items, 2))
+
+        itemsets = []
+        for pair in pairs:
+            set1 = pair[0]
+            set2 = pair[1]
+            set3 = set1.union(set2)
+            if set3 not in itemsets and len(set3) == k:
+                itemsets.append(set3)
         return itemsets
 
     def generateUniqueItemSet(self):
         """
         Generates a set of items that appear across all transactions. Updates the class attribute self.transactions
         """
+        items = set()
         for transaction in self.transactions:
             for item in transaction:
                 if item not in self.items:
-                    self.items.add(item)
-        return self.items
+                    items.add(item)
+        for item in items:
+            self.items.append(set(item))
 
     def importTransactions(self):
         """
@@ -194,23 +213,31 @@ class Apriori():
         infrequentSets (list): A list of subsets to check
 
         Returns
-        list: A pruned list of sets that do not contain of the infrequentSets as subsets
+        list: A pruned list of itemsets
         """
-        prunedSets = []
         if len(infrequentSets) == 0:
             return itemsets
         else:
-            for itemset in itemsets:
-                for infrequentSet in infrequentSets:
-                    if (not infrequentSet.issubset(itemset)) and (itemset not in prunedSets):
-                        prunedSets.append(itemset)
+            prunedSets = []
+            for i in range(len(itemsets)):
+                #print(str(round(i / len(itemsets) * 100, 2)) + "%", end="")
+                #print("\r", end="")
+                for j in range(len(infrequentSets)):
+                    if (not infrequentSets[j].issubset(itemsets[i])) and (itemsets[i] not in prunedSets):
+                        prunedSets.append(itemsets[i])
             return prunedSets
 
+
 def main():
-    path = 'supermarket.csv'
+    startTime = time.time()
+
+    path = 'transactions.csv'
     apriori = Apriori(minsup=0.15, minconf=0.8, minlift=1, path=path)
     frequentSets = apriori.run()
-    print(frequentSets)
+
+    for fset in frequentSets:
+        print(fset)
+    print(round(time.time() - startTime), end=" seconds")
 
 if __name__ == "__main__":
     main()

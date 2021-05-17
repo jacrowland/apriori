@@ -4,17 +4,7 @@ import csv
 import itertools
 import time
 
-class AssociationRule():
-    def __init__(self, body:set, head:set):
-        self.head = head
-        self.body = body
-        self.itemset = body.union(head)
-        self.confidence = None
-        self.support = None
-        self.lift = None
-
-    def __str__(self) -> str:
-        return "{} -> {}".format(self.body, self.head)
+from AssociationRule import AssociationRule
 
 class Apriori():
     """
@@ -292,10 +282,13 @@ def main():
     data = []
     for associationRule in associationRules:
         data.append((str(associationRule.body) + ' -> ' + str(associationRule.head), associationRule.support, associationRule.confidence, round(associationRule.lift, 2)))
-    
+        
+    for row in data:
+        print(row)
+        
     df = pd.DataFrame(data)
     df.columns = ['Rule', 'Sup', 'Conf', 'Lift']
-    print(df)
+    #print(df)
 
     print(len(associationRules))
 

@@ -36,64 +36,82 @@ class Apriori():
         """
         Runs the Apriori itemset frequency algorithm and returns a list of sets that pass the minsup, minconf and minlift rules
         """
-        print("Running...")
-        print("Database size: " + str(len(self.transactions)))
-        print("Number of unique items: " + str(len(self.items)))
+        print("Finding associations rules from {} transactions and {} unique items...".format(len(self.transactions), len(self.items)))
 
-        # Generate frequent itemsets of length k
-        frequentSets, infrequentSets = self.eliminateCandidates(self.items)
-        # Repeat until no new frequent itemsets are identified
-        k = 1
-        while len(frequentSets) != 0:  
-            k += 1
-            print("K: " + str(k) + "    " , end="")
-            print("\r", end="")
-            # Generate length (k+1) candidate itemsets from length k frequent itemsets
-            print("\nGenerating item sets...")
-            itemsets = self.generateItemSets(frequentSets, k) # TODO: THIS IS WRONG - SHOULD BE using the frequent itemset list to generate candidates
-            print("Pruning " + str(len(itemsets)) + " item sets...")
-            # Prune candidate itemsets containing subsets of length k that are infrequent
-            itemsets = self.prune(itemsets, infrequentSets)
-            # Count the support of each candidate by scanning the DB
-            # Eliminate candidates that are infrequent, leaving only those that are frequent
-            print("Making backup of item sets...")
-            backup = frequentSets.copy() # holds a copy of frequent sets for k-1
-            print("Eliminating candidate item sets...\n")
-            frequentSets, infrequentSets = self.eliminateCandidates(itemsets)
-        frequentSets = backup
+        frequentSets = self.generateFrequentSets()
+        associationRules = self.generateAssociationRules(frequentSets)
+        #associationRules = self.sortAssociationRules(associationRules) # sorts rules by length, lift, confidence and support
 
+        #frequentSets = [{'BREAD AND CAKE', 'BISCUITS', 'FRUIT', 'BAKING NEEDS', 'FROZEN FOODS', 'VEGETABLES'}]
 
-        print("Sorting final item sets...\n")
+        return associationRules
+
+    def generateAssociationRules(self, frequentSets:list)->list:
+        """
+        Generates a list of association rules that meat the confidence and lift thresholds
+
+        Parameters:
+        frequentSets (list): A list of frequent itemsets
+
+        Returns:
+        list: A list of containing the association rules that pass the confidence and lift thresholds
+        """
         # From frequent sets find rules that meet the confidence threshold
         associationRules = []
         for rule in frequentSets:
             itemsets = []
             for item in rule:
-                itemsets.append(set(item))
-                if self.calculateConfidence(rule, set(item)) > self.minconf: #TODO: clean this up
-                    associationRules.append(set(item))
-            k = len(itemsets)
+                s = set()
+                s.add(item)
+                itemsets.append(s)
             # generate subsets from 1 to k-1 in length
-            for num in range(2, k):
+            for num in range(2, len(itemsets)):
                 itemsets = self.generateItemSets(itemsets, num)
                 for itemset in itemsets:
                     if self.calculateConfidence(rule, itemset) > self.minconf: # TODO: Implement LIFT check
                         associationRules.append(itemset)
-                        
-        print("Complete.")
         return associationRules
 
-    def sortAssociationRules(self, associationRules:list)->list: # TODO: Implemeent sorted output list
+    def generateFrequentSets(self)->list:
+        """
+        Implements the Apriori frequent itemset generation algorithm.
+        Where itemsets is c_k and frequentSets = l_k 
+
+        Returns:
+        list: A list of frequent itemsets of size k-1
+        """
+        # Generate frequent itemsets of length k
+        frequentSets, infrequentSets = self.eliminateCandidates(self.items) # c_1
+        # Repeat until no new frequent itemsets are identified
+        k = 1
+        while True:  
+            k += 1
+            print("k: " + str(k) + "    " , end="\n")
+            # Generate length (k+1) candidate itemsets from length k frequent itemsets
+            itemsets = self.generateItemSets(frequentSets, k)
+            # Prune candidate itemsets containing subsets of length k that are infrequent
+            itemsets = self.prune(itemsets, infrequentSets)
+            # Count the support of each candidate by scanning the DB
+            # Eliminate candidates that are infrequent, leaving only those that are frequent
+            prevFrequentSets = frequentSets.copy() # holds a copy of frequent sets for k-1
+            frequentSets, infrequentSets = self.eliminateCandidates(itemsets)
+            # Runs until no frequent itemsets are identified
+            if len(frequentSets) == 0:
+                frequentSets = prevFrequentSets
+                break
+        return frequentSets
+
+    def sortAssociationRules(self, associationRules:list)->list: # TODO: sorted output list
         pass
     
     def eliminateCandidates(self, itemsets:list)->tuple:
         """
         Sorts candiadate itemsets by calculating the support value and comparing to the mininimum support value
 
-        Parameters
+        Parameters:
         itemsets (list): A list of sets to sort
 
-        Returns
+        Returns:
         tuple: Returns a tuple of two sets. Containing the eliminated rules and one containing rules that pass
         """
         frequentSets = []
@@ -179,6 +197,13 @@ class Apriori():
         """
         return self.calculateSupport(s) / self.calculateSupport(i)
 
+    def calculateLift(self, body:list, head:list)->float:
+        """
+        Calculates the importance of a rule
+
+        """
+        pass
+
     def count(self, s:set)->int:
         """
         Parameters
@@ -208,6 +233,7 @@ class Apriori():
             return itemsets
         else:
             prunedSets = []
+
             for i in range(len(itemsets)):
                 print(str(round(i / len(itemsets) * 100, 2)) + "%", end="")
                 print("\r", end="")
@@ -223,9 +249,8 @@ def main():
     path = 'supermarket.csv'
     apriori = Apriori(minsup=0.15, minconf=0.8, minlift=1, path=path)
     frequentSets = apriori.run()
-
-    for fset in frequentSets:
-        print(fset)
+    print(frequentSets)
+    print()
     print(round(time.time() - startTime), end=" seconds")
 
 if __name__ == "__main__":

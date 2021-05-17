@@ -4,6 +4,18 @@ import csv
 import itertools
 import time
 
+class AssociationRule():
+    def __init__(self, body:set, head:set):
+        self.head = head
+        self.body = body
+        self.itemset = body.union(head)
+        self.confidence = None
+        self.support = None
+        self.lift = None
+
+    def __str__(self) -> str:
+        return "{} -> {}".format(self.body, self.head)
+
 class Apriori():
     """
     This object implements the Apriori unsupervised machine learning algorithm 
@@ -39,10 +51,11 @@ class Apriori():
         print("Finding associations rules from {} transactions and {} unique items...".format(len(self.transactions), len(self.items)))
 
         frequentSets = self.generateFrequentSets()
+
+        #frequentSets = [{'BREAD AND CAKE', 'BISCUITS', 'FRUIT', 'BAKING NEEDS', 'FROZEN FOODS', 'VEGETABLES'}]
         associationRules = self.generateAssociationRules(frequentSets)
         #associationRules = self.sortAssociationRules(associationRules) # sorts rules by length, lift, confidence and support
 
-        #frequentSets = [{'BREAD AND CAKE', 'BISCUITS', 'FRUIT', 'BAKING NEEDS', 'FROZEN FOODS', 'VEGETABLES'}]
 
         return associationRules
 
@@ -59,17 +72,43 @@ class Apriori():
         # From frequent sets find rules that meet the confidence threshold
         associationRules = []
         for rule in frequentSets:
-            itemsets = []
+            items = []
+            # Split rule into sets of size 1 for subset generation
             for item in rule:
-                s = set()
-                s.add(item)
-                itemsets.append(s)
-            # generate subsets from 1 to k-1 in length
-            for num in range(2, len(itemsets)):
-                itemsets = self.generateItemSets(itemsets, num)
-                for itemset in itemsets:
-                    if self.calculateConfidence(rule, itemset) > self.minconf: # TODO: Implement LIFT check
-                        associationRules.append(itemset)
+                temp = set()
+                temp.add(item)
+                items.append(temp)
+            itemsets = []
+            itemsetsLengthK = items
+            # Generate all possible subsets of the rule from size 2 to size k
+            for k in range(2, len(items)):
+                itemsetsLengthK = self.generateItemSets(itemsetsLengthK, k)
+                for itemset in itemsetsLengthK:
+                    itemsets.append(itemset)
+
+            itemsets.append(rule)
+            # From these generated itemsets generate rules
+            for itemset in itemsets:
+                for i in range(len(itemset)):
+                    for body in [body for body in itertools.combinations(itemset, i+1)]:
+                        for head in itemset:
+                            if not head in body:
+                                body = set(body)
+                                temp = set()
+                                temp.add(head)
+                                head = temp
+
+                                associationRule = AssociationRule(body, head)
+
+                                #print(associationRule.itemset)
+                                associationRule.support = self.calculateSupport(associationRule.itemset)
+                                associationRule.confidence = self.calculateConfidence(associationRule.itemset, associationRule.body)
+                                associationRule.lift = self.calculateLift(associationRule.body, associationRule.head, associationRule.confidence)
+                                
+                                # Minconf, minsup and minlift check
+                                if (associationRule.confidence > self.minconf) and (associationRule.support > self.minsup) and (associationRule.lift > self.minlift):
+                                    associationRules.append(associationRule)
+
         return associationRules
 
     def generateFrequentSets(self)->list:
@@ -184,7 +223,7 @@ class Apriori():
         """
         return self.count(itemset) / len(self.transactions)
 
-    def calculateConfidence(self, s:set, i:set)->float:
+    def calculateConfidence(self, itemset:set, body:set)->float:
         """
         Calculates how often items in Y appear in transactions containing X
 
@@ -195,14 +234,15 @@ class Apriori():
         float: The confidence value for that set (rule)
 
         """
-        return self.calculateSupport(s) / self.calculateSupport(i)
+        return self.calculateSupport(itemset) / self.calculateSupport(body)
 
-    def calculateLift(self, body:list, head:list)->float:
+    def calculateLift(self, body:list, head:list, confidence:float)->float:
         """
         Calculates the importance of a rule
-
         """
-        pass
+        bodySupport = self.calculateSupport(body)
+        headSupport = self.calculateSupport(head)
+        return confidence / ((bodySupport * headSupport) / bodySupport)
 
     def count(self, s:set)->int:
         """
@@ -246,11 +286,19 @@ class Apriori():
 def main():
     startTime = time.time()
 
-    path = 'supermarket.csv'
+    path = 'transactions.csv'
     apriori = Apriori(minsup=0.15, minconf=0.8, minlift=1, path=path)
-    frequentSets = apriori.run()
-    print(frequentSets)
-    print()
+    associationRules = apriori.run()
+    data = []
+    for associationRule in associationRules:
+        data.append((str(associationRule.body) + ' -> ' + str(associationRule.head), associationRule.support, associationRule.confidence, round(associationRule.lift, 2)))
+    
+    df = pd.DataFrame(data)
+    df.columns = ['Rule', 'Sup', 'Conf', 'Lift']
+    print(df)
+
+    print(len(associationRules))
+
     print(round(time.time() - startTime), end=" seconds")
 
 if __name__ == "__main__":

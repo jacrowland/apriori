@@ -79,8 +79,12 @@ class Apriori():
                 for itemset in itemsets:
                     if self.calculateConfidence(rule, itemset) > self.minconf: # TODO: Implement LIFT check
                         associationRules.append(itemset)
+                        
         print("Complete.")
         return associationRules
+
+    def sortAssociationRules(self, associationRules:list)->list: # TODO: Implemeent sorted output list
+        pass
     
     def eliminateCandidates(self, itemsets:list)->tuple:
         """
@@ -136,7 +140,6 @@ class Apriori():
             s = set()
             s.add(item)
             self.items.append(s)
-        print(self.items)
 
     def importTransactions(self):
         """
@@ -149,22 +152,6 @@ class Apriori():
                 for item in row:
                     cleanedRow.append(item.strip().upper())
                 self.transactions.append(set(cleanedRow))
-
-    def calculateSupportValues(self, itemsets:list)->list: # TODO: REMOVE THIS METHOD - is not used
-        """
-        Gets a list for the support values for each itemset in a list of itemsets
-
-        Parameters:
-        itemsets (list): List of itemsets
-
-        Returns
-        list: A list containing float values that correspond to the sets in itemsets
-        """
-        supportValues = []
-        for itemset in itemsets:
-            support = self.calculateSupport(itemset)
-            supportValues.append(support)
-        return supportValues
 
     def calculateSupport(self, itemset:set)->float:
         """
@@ -233,7 +220,7 @@ class Apriori():
 def main():
     startTime = time.time()
 
-    path = 'transactions.csv'
+    path = 'supermarket.csv'
     apriori = Apriori(minsup=0.15, minconf=0.8, minlift=1, path=path)
     frequentSets = apriori.run()
 

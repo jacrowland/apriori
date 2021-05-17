@@ -61,7 +61,7 @@ class Apriori():
 
     def generateAssociationRules(self, frequentSets:list)->list:
         """
-        Generates a list of association rules that meat the confidence and lift thresholds
+        Generates a list of association rules that meet the confidence and lift thresholds
 
         Parameters:
         frequentSets (list): A list of frequent itemsets

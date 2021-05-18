@@ -1,11 +1,7 @@
-import numpy as np
-import pandas as pd
 import csv
 import itertools
 import time
-
 from AssociationRule import AssociationRule
-
 class Apriori():
     """
     This object implements the Apriori unsupervised machine learning algorithm 
@@ -38,16 +34,11 @@ class Apriori():
         """
         Runs the Apriori itemset frequency algorithm and returns a list of sets that pass the minsup, minconf and minlift rules
         """
-        print("Finding associations rules from {} transactions and {} unique items...".format(len(self.transactions), len(self.items)))
-
+        print("Finding association rules from {} transactions and {} unique items...\n".format(len(self.transactions), len(self.items)))
         frequentSets = self.generateFrequentSets()
-
-        #frequentSets = [{'BREAD AND CAKE', 'BISCUITS', 'FRUIT', 'BAKING NEEDS', 'FROZEN FOODS', 'VEGETABLES'}]
         associationRules = self.generateAssociationRules(frequentSets)
         #associationRules = self.sortAssociationRules(associationRules) # sorts rules by length, lift, confidence and support
-
-
-        return associationRules
+        return frequentSets, associationRules
 
     def generateAssociationRules(self, frequentSets:list)->list:
         """
@@ -57,49 +48,27 @@ class Apriori():
         frequentSets (list): A list of frequent itemsets
 
         Returns:
-        list: A list of containing the association rules that pass the confidence and lift thresholds
+        list: A list containing the association rules that pass the support, confidence and lift thresholds
         """
-        # From frequent sets find rules that meet the confidence threshold
         associationRules = []
-        for rule in frequentSets:
-            items = []
-            # Split rule into sets of size 1 for subset generation
-            for item in rule:
-                temp = set()
-                temp.add(item)
-                items.append(temp)
-            itemsets = []
-            itemsetsLengthK = items
-            # Generate all possible subsets of the rule from size 2 to size k
-            for k in range(2, len(items)):
-                itemsetsLengthK = self.generateItemSets(itemsetsLengthK, k)
-                for itemset in itemsetsLengthK:
-                    itemsets.append(itemset)
-
-            itemsets.append(rule)
-            # From these generated itemsets generate rules
-            for itemset in itemsets:
-                for i in range(len(itemset)):
-                    for body in [body for body in itertools.combinations(itemset, i+1)]:
-                        for head in itemset:
-                            if not head in body:
-                                body = set(body)
-                                temp = set()
-                                temp.add(head)
-                                head = temp
-
-                                associationRule = AssociationRule(body, head)
-
-                                #print(associationRule.itemset)
-                                associationRule.support = self.calculateSupport(associationRule.itemset)
-                                associationRule.confidence = self.calculateConfidence(associationRule.itemset, associationRule.body)
-                                associationRule.lift = self.calculateLift(associationRule.body, associationRule.head, associationRule.confidence)
-                                
-                                # Minconf, minsup and minlift check
-                                if (associationRule.confidence > self.minconf) and (associationRule.support > self.minsup) and (associationRule.lift > self.minlift):
-                                    associationRules.append(associationRule)
-
+        # partition the set  
+        for itemset in frequentSets:
+            for i in range(len(itemset)):
+                for c in [c for c in itertools.combinations(itemset, i+1)]:
+                    body = set(list(c))
+                    head = set([i for i in itemset if not i in c])
+                    if (len(head) > 0 and len(body) > 0):
+                        # from head/body partitions create association rules 
+                        associationRule = AssociationRule(body, head) # X -> Y
+                        reverseAssociationRule = AssociationRule(head, body) # Y -> X
+                        associationRule.support = self.calculateSupport(associationRule.itemset)
+                        associationRule.confidence = self.calculateConfidence(associationRule.itemset, associationRule.body)
+                        associationRule.lift = self.calculateLift(associationRule.body, associationRule.head, associationRule.confidence)
+                        # test is rule passes minconf, minsup and minlift
+                        if (associationRule.confidence >= self.minconf) and (associationRule.support >= self.minsup) and (associationRule.lift >= self.minlift):
+                            associationRules.append(associationRule)
         return associationRules
+
 
     def generateFrequentSets(self)->list:
         """
@@ -109,13 +78,17 @@ class Apriori():
         Returns:
         list: A list of frequent itemsets of size k-1
         """
+        allFrequentSets = []
+
         # Generate frequent itemsets of length k
         frequentSets, infrequentSets = self.eliminateCandidates(self.items) # c_1
+        for fset in frequentSets:
+            allFrequentSets.append(fset)
         # Repeat until no new frequent itemsets are identified
         k = 1
         while True:  
             k += 1
-            print("k: " + str(k) + "    " , end="\n")
+            #print("k: " + str(k) + "    " , end="\n")
             # Generate length (k+1) candidate itemsets from length k frequent itemsets
             itemsets = self.generateItemSets(frequentSets, k)
             # Prune candidate itemsets containing subsets of length k that are infrequent
@@ -128,7 +101,9 @@ class Apriori():
             if len(frequentSets) == 0:
                 frequentSets = prevFrequentSets
                 break
-        return frequentSets
+            for fset in frequentSets:
+                allFrequentSets.append(fset)
+        return allFrequentSets
 
     def sortAssociationRules(self, associationRules:list)->list: # TODO: sorted output list
         pass
@@ -278,21 +253,14 @@ def main():
 
     path = 'transactions.csv'
     apriori = Apriori(minsup=0.15, minconf=0.8, minlift=1, path=path)
-    associationRules = apriori.run()
-    data = []
+    frequentSets, associationRules = apriori.run()
+
     for associationRule in associationRules:
-        data.append((str(associationRule.body) + ' -> ' + str(associationRule.head), associationRule.support, associationRule.confidence, round(associationRule.lift, 2)))
-        
-    for row in data:
-        print(row)
-        
-    df = pd.DataFrame(data)
-    df.columns = ['Rule', 'Sup', 'Conf', 'Lift']
-    #print(df)
+        print(associationRule)
 
-    print(len(associationRules))
-
-    print(round(time.time() - startTime), end=" seconds")
+    print("\n{} rules".format(len(associationRules)))
+    print("{} frequent itemsets".format(len(frequentSets)))
+    print("\n{} seconds to compute\n".format(round(time.time() - startTime)))
 
 if __name__ == "__main__":
     main()

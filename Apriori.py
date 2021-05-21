@@ -34,10 +34,11 @@ class Apriori():
         """
         Runs the Apriori itemset frequency algorithm and returns a list of sets that pass the minsup, minconf and minlift rules
         """
-        print("Finding association rules from {} transactions and {} unique items...\n".format(len(self.transactions), len(self.items)))
+        print("Finding association rules from {} transactions and {} unique items...".format(len(self.transactions), len(self.items)))
         frequentSets = self.generateFrequentSets()
         associationRules = self.generateAssociationRules(frequentSets)
-        #associationRules = self.sortAssociationRules(associationRules) # sorts rules by length, lift, confidence and support
+        associationRules = self.sortAssociationRules(associationRules) # sorts rules by length, lift, confidence and support
+        print("Complete.")
         return frequentSets, associationRules
 
     def generateAssociationRules(self, frequentSets:list)->list:
@@ -69,7 +70,6 @@ class Apriori():
                             associationRules.append(associationRule)
         return associationRules
 
-
     def generateFrequentSets(self)->list:
         """
         Implements the Apriori frequent itemset generation algorithm.
@@ -88,7 +88,7 @@ class Apriori():
         k = 1
         while True:  
             k += 1
-            #print("k: " + str(k) + "    " , end="\n")
+            print("k: " + str(k) + "    " , end="\n")
             # Generate length (k+1) candidate itemsets from length k frequent itemsets
             itemsets = self.generateItemSets(frequentSets, k)
             # Prune candidate itemsets containing subsets of length k that are infrequent
@@ -101,12 +101,29 @@ class Apriori():
             if len(frequentSets) == 0:
                 frequentSets = prevFrequentSets
                 break
+            # stores all the frequent itemsets of size k
             for fset in frequentSets:
                 allFrequentSets.append(fset)
         return allFrequentSets
 
     def sortAssociationRules(self, associationRules:list)->list: # TODO: sorted output list
-        pass
+        """
+        Sorts the given list of association rules by four different attributes.
+        Including by itemset length (decreasing), minlift, minconf and minsup (decreasing)
+
+        Paramaters:
+        associationRules (list): A list of AssociationRule objects
+
+        Returns:
+        list: A sorted list of AssociationRule objects
+
+        """
+        associationRules = sorted(associationRules, key=lambda x: x.support, reverse=True) # support (decreasing)
+        associationRules = sorted(associationRules, key=lambda x: x.confidence, reverse=False) # confidence
+        associationRules = sorted(associationRules, key=lambda x: x.lift, reverse=False) # lift value
+        associationRules = sorted(associationRules, key=lambda x: len(x.itemset), reverse=True) # number of items (decreasing)
+
+        return associationRules
     
     def eliminateCandidates(self, itemsets:list)->tuple:
         """
@@ -252,15 +269,15 @@ def main():
     startTime = time.time()
 
     path = 'transactions.csv'
-    apriori = Apriori(minsup=0.15, minconf=0.8, minlift=1, path=path)
+    apriori = Apriori(minsup=0.15, minconf=0.8, minlift=0, path=path)
     frequentSets, associationRules = apriori.run()
 
+    print("\nComputed association rules:\n")
     for associationRule in associationRules:
+        #print(len(associationRule.itemset), round(associationRule.lift, 2), associationRule.confidence, associationRule.support)
         print(associationRule)
 
-    print("\n{} rules".format(len(associationRules)))
-    print("{} frequent itemsets".format(len(frequentSets)))
-    print("\n{} seconds to compute\n".format(round(time.time() - startTime)))
+    print("\nFound {} rules from {} itemsets in {} seconds.\n".format(len(associationRules), len(frequentSets), round(time.time() - startTime, 2)))
 
 if __name__ == "__main__":
     main()

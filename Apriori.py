@@ -35,9 +35,12 @@ class Apriori():
         """
         Runs the Apriori itemset frequency algorithm and returns a sorted list of association rules that pass the minsup, minconf and minlift rules
         """
-        print("Finding association rules from {} transactions and {} unique items...".format(len(self.transactions), len(self.items)))
+        print("Running Apriori...")
+        print(" a. Finding association rules from {} transactions and {} unique items...".format(len(self.transactions), len(self.items)))
         frequentSets = self.generateFrequentSets() # find all frequent itemsets of length 1 to k-1
+        print(" b. Generating association rules from frequent itemsets...")
         associationRules = self.generateAssociationRules(frequentSets) # generate rules that pass the minsup, minlift and minsup thresholds
+        print(" c. Sorting association rules...")
         associationRules = self.sortAssociationRules(associationRules) # sorts rules by length, lift, confidence and support
         print("Complete.")
         return frequentSets, associationRules
@@ -88,7 +91,7 @@ class Apriori():
         k = 1
         while True:  
             k += 1
-            print("k: " + str(k) + "    " , end="\n")
+            print("     k = " + str(k) + "    " , end="\n")
             # Generate length (k+1) candidate itemsets from length k frequent itemsets
             itemsets = self.generateItemSets(frequentSets, k)
             # Prune candidate itemsets containing subsets of length k that are infrequent
@@ -254,14 +257,15 @@ class Apriori():
         if len(infrequentSets) == 0:
             return itemsets
         else:
-            prunedSets = []
-
             for i in range(len(itemsets)):
-                print(str(round(i / len(itemsets) * 100, 2)) + "%", end="")
+                print("     " +str(round(i / len(itemsets) * 100, 2)) + "%", end="")
                 print("\r", end="")
                 for j in range(len(infrequentSets)):
-                    if (not infrequentSets[j].issubset(itemsets[i])) and (itemsets[i] not in prunedSets):
-                        prunedSets.append(itemsets[i])
+                    if itemsets[i] == None: 
+                        break # set has been pruned so all other comparisons can be skipped
+                    elif (infrequentSets[j].issubset(itemsets[i])):
+                        itemsets[i] = None
+            prunedSets = [itemset for itemset in itemsets if itemset is not None] # filter all nonpruned itemsets
             return prunedSets
 
 def displayAssociationRules(associationRules:list):
@@ -279,7 +283,6 @@ def displayAssociationRules(associationRules:list):
     df = pd.DataFrame(ruleList, columns=["Rule", "Length", "Lift", "Conf", "Sup"])
     print(df.to_string(index=False))
 
-
 def main():
     startTime = time.time()
 
@@ -287,7 +290,7 @@ def main():
     pd.set_option('display.max_columns', 500)
     pd.set_option('display.width', 150)
 
-    path = 'transactions.csv'
+    path = 'supermarket.csv'
     apriori = Apriori(minsup=0.15, minconf=0.8, minlift=0, path=path)
     frequentSets, associationRules = apriori.run()
 

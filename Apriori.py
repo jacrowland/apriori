@@ -1,6 +1,7 @@
 import csv
 import itertools
 import time
+import pandas as pd
 from AssociationRule import AssociationRule
 class Apriori():
     """
@@ -32,11 +33,11 @@ class Apriori():
 
     def run(self):
         """
-        Runs the Apriori itemset frequency algorithm and returns a list of sets that pass the minsup, minconf and minlift rules
+        Runs the Apriori itemset frequency algorithm and returns a sorted list of association rules that pass the minsup, minconf and minlift rules
         """
         print("Finding association rules from {} transactions and {} unique items...".format(len(self.transactions), len(self.items)))
-        frequentSets = self.generateFrequentSets()
-        associationRules = self.generateAssociationRules(frequentSets)
+        frequentSets = self.generateFrequentSets() # find all frequent itemsets of length 1 to k-1
+        associationRules = self.generateAssociationRules(frequentSets) # generate rules that pass the minsup, minlift and minsup thresholds
         associationRules = self.sortAssociationRules(associationRules) # sorts rules by length, lift, confidence and support
         print("Complete.")
         return frequentSets, associationRules
@@ -61,7 +62,6 @@ class Apriori():
                     if (len(head) > 0 and len(body) > 0):
                         # from head/body partitions create association rules 
                         associationRule = AssociationRule(body, head) # X -> Y
-                        reverseAssociationRule = AssociationRule(head, body) # Y -> X
                         associationRule.support = self.calculateSupport(associationRule.itemset)
                         associationRule.confidence = self.calculateConfidence(associationRule.itemset, associationRule.body)
                         associationRule.lift = self.calculateLift(associationRule.body, associationRule.head, associationRule.confidence)
@@ -264,19 +264,41 @@ class Apriori():
                         prunedSets.append(itemsets[i])
             return prunedSets
 
+def displayAssociationRules(associationRules:list):
+    """
+    Displays each association rule in a df alongside itemset frequency, 
+    lift, confidence and support values.
+
+    Parameters:
+    associationRules (list): A list of sorted association rules
+    """
+    ruleList = []
+    for associationRule in associationRules:
+        rule = [str(associationRule), len(associationRule.itemset), round(associationRule.lift, 2), associationRule.confidence, associationRule.support]
+        ruleList.append(rule)
+    df = pd.DataFrame(ruleList, columns=["Rule", "Length", "Lift", "Conf", "Sup"])
+    print(df.to_string(index=False))
+
 
 def main():
     startTime = time.time()
+
+    pd.set_option('display.max_rows', 500)
+    pd.set_option('display.max_columns', 500)
+    pd.set_option('display.width', 150)
 
     path = 'transactions.csv'
     apriori = Apriori(minsup=0.15, minconf=0.8, minlift=0, path=path)
     frequentSets, associationRules = apriori.run()
 
     print("\nComputed association rules:\n")
+
+    displayAssociationRules(associationRules)
+    """
     for associationRule in associationRules:
         #print(len(associationRule.itemset), round(associationRule.lift, 2), associationRule.confidence, associationRule.support)
         print(associationRule)
-
+    """
     print("\nFound {} rules from {} itemsets in {} seconds.\n".format(len(associationRules), len(frequentSets), round(time.time() - startTime, 2)))
 
 if __name__ == "__main__":

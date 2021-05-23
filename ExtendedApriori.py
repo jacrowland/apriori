@@ -3,18 +3,20 @@ import itertools
 import time
 import pandas as pd
 from AssociationRule import AssociationRule
-class Apriori():
+
+class ExtendedApriori():
     """
     This object implements the Apriori unsupervised machine learning algorithm 
     for frequent item set mining and association rule learning
     """
-    def __init__(self, minsup:float, minconf:float, minlift:float, path:str):
+    def __init__(self, minsup:float, minconf:float, minlift:float, minRelativeSup:float, path:str):
         """Initalise the Apiori class
 
         Parameters:
         minsup (float): Minimuim support
         minconf (float): Minimum confidence
         minlift (float): Minimum lift
+        minRelativeSup (float): Minimum relative support
         path (str): Transaction CSV path - each line is transaction of items seperated by comma
         items (set): The set of unique items found across all transactions - initalised by generateUniqueItemSet()
         transactions (list): A list of sets for each transaction - where each is a set of items
@@ -25,6 +27,7 @@ class Apriori():
         self.minsup = minsup
         self.minconf = minconf
         self.minlift = minlift
+        self.minRelativeSup = minRelativeSup
         self.path = path
         self.transactions = []
         self.items = []
@@ -94,12 +97,16 @@ class Apriori():
             print("     k = " + str(k) + "    " , end="\n")
             # Generate length (k+1) candidate itemsets from length k frequent itemsets
             itemsets = self.generateItemSets(frequentSets, k)
+
+            # Task 5 extention
+            maxSubsetSup = self.calculateMaxSubsetSupport(frequentSets)
+
             # Prune candidate itemsets containing subsets of length k that are infrequent
             itemsets = self.prune(itemsets, infrequentSets)
             # Count the support of each candidate by scanning the DB
             # Eliminate candidates that are infrequent, leaving only those that are frequent
             prevFrequentSets = frequentSets.copy() # holds a copy of frequent sets for k-1
-            frequentSets, infrequentSets = self.eliminateCandidates(itemsets)
+            frequentSets, infrequentSets = self.eliminateCandidates(itemsets, maxSubsetSup)
             # Runs until no frequent itemsets are identified
             if len(frequentSets) == 0:
                 frequentSets = prevFrequentSets
@@ -128,7 +135,7 @@ class Apriori():
 
         return associationRules
     
-    def eliminateCandidates(self, itemsets:list)->tuple:
+    def eliminateCandidates(self, itemsets:list, maxSubsetSup:float=None)->tuple:
         """
         Sorts candiadate itemsets by calculating the support value and comparing to the mininimum support value
 
@@ -141,8 +148,14 @@ class Apriori():
         frequentSets = []
         infrequentSets = []
         for i in range(len(itemsets)):
-            if not self.calculateSupport(itemsets[i]) < self.minsup:
-                frequentSets.append(itemsets[i])
+            sup = self.calculateSupport(itemsets[i])
+            if sup >= self.minsup:
+                if len(itemsets) <= 2 or maxSubsetSup == None:
+                    frequentSets.append(itemsets[i])
+                elif sup >= self.minRelativeSup: # k >= 2
+                    frequentSets.append(itemsets[i])
+                else:
+                    infrequentSets.append(itemsets[i])
             else:
                 infrequentSets.append(itemsets[i])
         return frequentSets, infrequentSets
@@ -208,22 +221,65 @@ class Apriori():
         """
         return self.count(itemset) / len(self.transactions)
 
+    def calculateRelativeSupport(self, itemset:set, maxSubsetSup:float)->float:
+        """
+        Calculates the relative support of an itemset against the maximum sort from
+        the itemsets of the previous iteration k - 1
+
+        Parameters:
+        itemset (set): A set of items
+        maxSubsetSup (float): The maximum support for k-1 frequent itemsets
+
+        Returns:
+        float: The relative support value
+
+        """
+        return self.calculateSupport(itemset) / maxSubsetSup
+
+    def calculateMaxSubsetSupport(self, itemsets:list)->float:
+        """
+        Finds the maximum support value given a list of itemsets
+
+        Paramaters:
+        itemsets (list): A list of itemsets
+
+        Returns:
+        float: The maximum support value
+
+        """
+        maxSubsetSup = None
+        for itemset in itemsets:
+            sup = self.calculateSupport(itemset)
+            if maxSubsetSup == None:
+                maxSubsetSup = sup
+            elif sup > maxSubsetSup:
+                maxSubsetSup = sup
+        return maxSubsetSup
+
     def calculateConfidence(self, itemset:set, body:set)->float:
         """
         Calculates how often items in Y appear in transactions containing X
 
-        Parameters
+        Parameters:
         set (set): A set of items
 
-        Returns
+        Returns:
         float: The confidence value for that set (rule)
 
         """
         return self.calculateSupport(itemset) / self.calculateSupport(body)
 
-    def calculateLift(self, body:list, head:list, confidence:float)->float:
+    def calculateLift(self, body:set, head:set, confidence:float)->float:
         """
         Calculates the importance of a rule
+
+        Parameters:
+        body (set): The set of items in the association rule body
+        head (set): The set of items in the head of the association rule
+
+        Returns:
+        float: The lift value of the association rule
+
         """
         bodySupport = self.calculateSupport(body)
         headSupport = self.calculateSupport(head)
@@ -254,6 +310,10 @@ class Apriori():
         Returns
         list: A pruned list of itemsets
         """
+
+        # TODO: Implement minRelativeSup check
+
+
         if len(infrequentSets) == 0:
             return itemsets
         else:
@@ -290,8 +350,8 @@ def displayAssociationRules(associationRules:list):
 def main():
     startTime = time.time()
 
-    path = 'supermarket.csv'
-    apriori = Apriori(minsup=0.15, minconf=0.8, minlift=0, path=path)
+    path = 'task1.csv'
+    apriori = ExtendedApriori(minsup=0.15, minconf=0.8, minlift=0, minRelativeSup=0.5, path=path)
     frequentSets, associationRules = apriori.run()
 
     print("\nComputed association rules:\n")

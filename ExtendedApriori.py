@@ -150,12 +150,14 @@ class ExtendedApriori():
         for i in range(len(itemsets)):
             sup = self.calculateSupport(itemsets[i])
             if sup >= self.minsup:
-                if len(itemsets) <= 2 or maxSubsetSup == None:
-                    frequentSets.append(itemsets[i])
-                elif sup >= self.minRelativeSup: # k >= 2
-                    frequentSets.append(itemsets[i])
+                if maxSubsetSup != None and len(itemsets[i]) > 2:
+                    if maxSubsetSup >= self.minRelativeSup:
+                        print(len(itemsets))
+                        frequentSets.append(itemsets[i])
+                    else:
+                        infrequentSets.append(itemsets[i])
                 else:
-                    infrequentSets.append(itemsets[i])
+                    frequentSets.append(itemsets[i])
             else:
                 infrequentSets.append(itemsets[i])
         return frequentSets, infrequentSets
@@ -311,9 +313,6 @@ class ExtendedApriori():
         list: A pruned list of itemsets
         """
 
-        # TODO: Implement minRelativeSup check
-
-
         if len(infrequentSets) == 0:
             return itemsets
         else:
@@ -351,7 +350,7 @@ def main():
     startTime = time.time()
 
     path = 'task1.csv'
-    apriori = ExtendedApriori(minsup=0.15, minconf=0.8, minlift=0, minRelativeSup=0.5, path=path)
+    apriori = ExtendedApriori(minsup=0.15, minconf=0.8, minlift=0, minRelativeSup=1.5, path=path)
     frequentSets, associationRules = apriori.run()
 
     print("\nComputed association rules:\n")

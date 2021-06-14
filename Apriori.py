@@ -5,8 +5,8 @@ import pandas as pd
 from AssociationRule import AssociationRule
 class Apriori():
     """
-    This object implements the Apriori unsupervised machine learning algorithm 
-    for frequent item set mining and association rule learning
+    An implementation of the Apriori unsupervised machine learning algorithm for frequent item set mining and association rule learning
+    
     """
     def __init__(self, minsup:float, minconf:float, minlift:float, path:str):
         """Initalise the Apiori class
